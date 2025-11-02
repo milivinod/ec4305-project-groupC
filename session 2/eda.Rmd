@@ -1,0 +1,94 @@
+---
+title: "ec4305 project test"
+output: html_document
+---
+
+```{r}
+library(corrplot)
+library(ggplot2)
+library(tidyr)
+library(MASS)
+library(ggcorrplot)
+library(caTools)
+```
+
+#Data Cleaning and Exploratory Data Analysis
+```{r}
+#summary of data
+data(Boston)
+df <- Boston
+head(df)
+summary(df)
+
+#handling missing data, replace with median
+na_count <- sum(is.na(df))
+
+if (na_count>0){
+  for (variable in 1:ncol(df)){
+    if(any(is.na(df[,i]))) {
+    df[is.na(df[,i]),i] <- median(df[,i], na.rm = TRUE)
+    }
+  }
+}
+str(df)
+```
+exploratory data analysis
+```{r}
+#exploratory data analysis 
+#correlation heatmap
+cor_matrix <- cor(df)
+corr_plot <- ggcorrplot(cor_matrix,
+                        hc.order = TRUE,
+                        type = "lower",
+                        lab = TRUE,
+                        lab_size = 3)
+                  
+corr_plot
+
+df_long <- pivot_longer(df, cols = everything(), names_to = "variable", values_to = "value")
+
+# boxplots of all features
+ggplot(df_long, aes(x = variable, y = value)) +
+  geom_boxplot() +
+  facet_wrap(~ variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Boxplots of All Features",
+       x = "Feature",
+       y = "Value") +
+  theme(axis.text.x = element_blank())
+#some variables are skewed, need to log transform for linear regression models
+#note that chas is a categorical variable
+
+#scatter plot to demonstrate non-linear relationship (LSTAT vs MEDV)
+ggplot(df, aes(x = lstat, y = medv)) +
+  geom_point(alpha = 0.6) +  # 'alpha' makes points semi-transparent
+  geom_smooth(method = "lm", color = "red", se = FALSE) +  # The 'lm' line
+  geom_smooth(method = "loess", color = "blue", se = FALSE) + # A 'loess' curve
+  theme_minimal() +
+  labs(title = "Median Value (MEDV) vs. % Lower Status (LSTAT)",
+       subtitle = "Red = Linear Fit, Blue = Smooth Curve",
+       x = "% Lower Status (LSTAT)",
+       y = "Median Home Value (MEDV, $1000s)")
+
+#scatter plot to demonstrate linear relationships (RM vs MEDV)
+ggplot(df, aes(x = rm, y = medv)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", color = "red", se = FALSE) +
+  theme_minimal() +
+  labs(title = "Median Value (MEDV) vs. Avg. Rooms (RM)",
+       x = "Average Rooms (RM)",
+       y = "Median Home Value (MEDV, $1000s)")
+
+```
+
+
+```{r}
+#split into training and test datasets
+set.seed(4305)
+split <- sample.split(Boston$medv, SplitRatio = 0.8)
+
+train_data <- subset(Boston, split == TRUE)
+train_data <- subset(Boston, split == FALSE)
+```
+
+
