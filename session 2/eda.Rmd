@@ -116,3 +116,60 @@ rf_mae = mean(abs(rf_pred - test_y)) #2.181463
 rf_r2 = 1 - sum((test_y - rf_pred)^2) /
   sum((test_y -mean(test_y))^2) #0.840421
 ```
+XGBoost
+```{r}
+library(xgboost)
+x_train <- as.matrix(select(train_data, -medv))
+x_test <- as.matrix(select(test_data, -medv))
+######################
+### Minimal Tuning ###
+######################
+xgb <- xgboost(data = x_train, label = train_y, 
+                     nrounds = 100, objective = "reg:squarederror",
+                     verbose = 0) 
+xgb_pred <- predict(xgb, x_test)
+
+# Variable importance
+importance_matrix <- xgb.importance(model = xgb)
+xgb.plot.importance(importance_matrix)
+
+# Model performance metrics
+xgb_rmse <- sqrt(mean((xgb_pred - test_y)^2)) #3.43057
+xgb_mae = mean(abs(xgb_pred - test_y)) #2.31843
+xgb_r2 = 1 - sum((test_y - xgb_pred)^2) /
+  sum((test_y -mean(test_y))^2) #0.7906195
+
+###################
+### With Tuning ###
+###################
+dtrain <- xgb.DMatrix(data = x_train, label = train_y)
+dtest  <- xgb.DMatrix(data = x_test,  label = test_y)
+
+params <- list(
+  objective = "reg:squarederror",
+  eval_metric = "rmse",
+  eta = 0.05,
+  max_depth = 4,
+  subsample = 0.8,
+  colsample_bytree = 0.8
+)
+set.seed(4305)
+xgb_bmodel <- xgb.train(
+  params = params,
+  data = dtrain,
+  nrounds = 500,
+  watchlist = list(train = dtrain),
+  verbose = 0
+)
+xgb_pred1 <- predict(xgb_bmodel, newdata = dtest)
+
+# Variable importance
+importance_matrixb <- xgb.importance(model = xgb_bmodel)
+xgb.plot.importance(importance_matrixb)
+
+# Model performance metrics
+xgb_rmse1 <- sqrt(mean((xgb_pred1 - test_y)^2)) #2.910578
+xgb_mae1 = mean(abs(xgb_pred1 - test_y)) #2.060643
+xgb_r21 = 1 - sum((test_y - xgb_pred1)^2) /
+  sum((test_y -mean(test_y))^2) #0.849283
+```
