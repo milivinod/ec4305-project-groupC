@@ -116,6 +116,36 @@ rf_mae = mean(abs(rf_pred - test_y)) #2.181463
 rf_r2 = 1 - sum((test_y - rf_pred)^2) /
   sum((test_y -mean(test_y))^2) #0.840421
 ```
+
+Gradient Boosting
+```{r}
+library(gbm)
+set.seed(4305)
+gbm_model <- gbm(
+  formula = medv ~ .,
+  data = train_data,
+  distribution = "gaussian",   # regression
+  n.trees = 3000,              # number of trees
+  interaction.depth = 3,       # tree depth
+  shrinkage = 0.01,            # learning rate
+  n.minobsinnode = 5,          # minimum observations in a node
+  bag.fraction = 0.7,          # stochastic GBM (improves generalization)
+  train.fraction = 1.0,        # use full training set
+  verbose = FALSE
+)
+
+summary(gbm_model)
+
+gbm_pred <- predict(gbm_model,
+                    newdata = test_data,
+                    n.trees = 3000)
+
+# Model performance metrics
+gbm_rmse <- sqrt(mean((gbm_pred - test_y)^2)) #2.904807
+gbm_mae = mean(abs(gbm_pred - test_y)) #2.085815
+gbm_r2 = 1 - sum((test_y - gbm_pred)^2) /
+  sum((test_y -mean(test_y))^2) #0.8498801
+
 XGBoost
 ```{r}
 library(xgboost)
