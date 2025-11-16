@@ -121,7 +121,7 @@ Gradient Boosting
 ```{r}
 library(gbm)
 set.seed(4305)
-gbm_model <- gbm(
+gbm <- gbm(
   formula = medv ~ .,
   data = train_data,
   distribution = "gaussian",   # regression
@@ -134,9 +134,9 @@ gbm_model <- gbm(
   verbose = FALSE
 )
 
-summary(gbm_model)
+summary(gbm)
 
-gbm_pred <- predict(gbm_model,
+gbm_pred <- predict(gbm,
                     newdata = test_data,
                     n.trees = 3000)
 
@@ -145,6 +145,7 @@ gbm_rmse <- sqrt(mean((gbm_pred - test_y)^2)) #2.904807
 gbm_mae = mean(abs(gbm_pred - test_y)) #2.085815
 gbm_r2 = 1 - sum((test_y - gbm_pred)^2) /
   sum((test_y -mean(test_y))^2) #0.8498801
+```
 
 XGBoost
 ```{r}
@@ -202,4 +203,16 @@ xgb_rmse1 <- sqrt(mean((xgb_pred1 - test_y)^2)) #2.910578
 xgb_mae1 = mean(abs(xgb_pred1 - test_y)) #2.060643
 xgb_r21 = 1 - sum((test_y - xgb_pred1)^2) /
   sum((test_y -mean(test_y))^2) #0.849283
+```
+
+Comparison Table
+```{r}
+comparison <- data.frame(
+  Model = c("Random forest", "Gradient Boosting", "XGBoost (without tuning)", "XGBoost (with tuning)"),
+  RMSE = c(rf_rmse, gbm_rmse, xgb_rmse, xgb_rmse1),
+  MAE = c(rf_mae, gbm_mae, xgb_mae, xgb_mae1),
+  R_squared = c(rf_r2, gbm_r2, xgb_r2, xgb_r21)
+)
+
+print(comparison)
 ```
