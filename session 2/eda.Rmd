@@ -10,6 +10,7 @@ library(tidyr)
 library(MASS)
 library(ggcorrplot)
 library(caTools)
+library(readr)
 ```
 
 #Data Cleaning and Exploratory Data Analysis
@@ -88,7 +89,8 @@ set.seed(4305)
 split <- sample.split(Boston$medv, SplitRatio = 0.8)
 
 train_data <- subset(Boston, split == TRUE)
-train_data <- subset(Boston, split == FALSE)
+test_data <- subset(Boston, split == FALSE)
+write_csv(train_data,"train_data.csv")
+write_csv(test_data, "test_data.csv")
 ```
-
 
