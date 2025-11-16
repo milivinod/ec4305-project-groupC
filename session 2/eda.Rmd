@@ -93,6 +93,9 @@ train_data <- subset(Boston, split == TRUE)
 test_data <- subset(Boston, split == FALSE)
 write_csv(train_data,"train_data.csv")
 write_csv(test_data, "test_data.csv")
+
+train_y <- train_data$medv
+test_y  <- test_data$medv
 ```
 
 Random forest
@@ -108,8 +111,8 @@ varImpPlot(rf, main = "Variable Importance")
 
 rf_pred = predict(rf, test_data)
 # Model performance metrics
-rf_rmse = sqrt(mean((rf_pred - test_data$medv)^2)) #2.994926
-rf_mae = mean(abs(rf_pred - test_data$medv)) #2.181463
-rf_r2 = 1 - sum((test_data$medv - rf_pred)^2) /
-  sum((test_data$medv -mean(test_data$medv))^2) #0.840421
+rf_rmse = sqrt(mean((rf_pred - test_y)^2)) #2.994926
+rf_mae = mean(abs(rf_pred - test_y)) #2.181463
+rf_r2 = 1 - sum((test_y - rf_pred)^2) /
+  sum((test_y -mean(test_y))^2) #0.840421
 ```
