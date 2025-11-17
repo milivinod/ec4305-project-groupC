@@ -15,6 +15,8 @@ library(rpart)
 library(rpart.plot)
 library(randomForest)
 library(gbm)
+library(pls)
+library(ivreg)
 ```
 
 ### load datasets
@@ -101,6 +103,22 @@ model_gbm <- train(medv ~ ., data = data,
                    trControl = train_control,
                    verbose = FALSE,
                    tuneLength = 5)
+
+#12. PCR
+model_pcr <- train(medv ~ ., data = data,
+                   method = "pcr",
+                   trControl = train_control,
+                   preProcess = c("center", "scale"),
+                   verbose = FALSE,
+                   tuneLength = 13)
+
+#13. PLS
+model_pls <- train(medv ~ ., data = data,
+                   method = "pls",
+                   trControl = train_control,
+                   preProcess = c("center", "scale"),
+                   verbose = FALSE,
+                   tuneLength = 13)
 ```
 
 ### Testing Models
@@ -117,7 +135,9 @@ results <- resamples(list(
   KNN = model_knn,
   Tree = model_tree,
   RandomForest = model_rf,
-  GBM = model_gbm
+  GBM = model_gbm,
+  PCR = model_pcr,
+  PLS = model_pls
 ))
 
 summary(results)
