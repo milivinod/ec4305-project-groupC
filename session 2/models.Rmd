@@ -3,7 +3,7 @@ title: "models"
 output: html_document
 ---
 
-```{r}
+```{r, warning = FALSE}
 library(readr)
 library(ggplot2)
 library(tidyr)
@@ -11,9 +11,13 @@ library(MASS)
 library(leaps)
 library(glmnet)
 library(caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(gbm)
 ```
 
-#load datasets
+### load datasets
 ```{r}
 train_data <- read_csv("train_data.csv")
 test_data <- read_csv("test_data.csv")
@@ -22,8 +26,7 @@ data <- read_csv("data.csv")
 train_control <- trainControl(method = "cv", number = 10)
 ```
 
-
-```{r}
+```{r, warning = FALSE}
 #Training Models
 set.seed(4305)
 #1. Baseline Model: OLS
@@ -78,9 +81,29 @@ model_knn <- train(medv ~ ., data = data,
                    preProcess = c("center", "scale"),
                    trControl = train_control,
                    tuneLength = 10)
+
+#9. Decision Tree
+model_tree <- train(medv ~ ., data = data,
+                    method = "rpart",
+                    trControl = train_control,
+                    tuneLength = 10)
+
+#10. Random Forest
+model_rf <- train(medv ~ ., data = data,
+                  method = "rf",
+                  trControl = train_control,
+                  tuneLength = 5,
+                  importance = TRUE)
+
+#11. GBM
+model_gbm <- train(medv ~ ., data = data,
+                   method = "gbm",
+                   trControl = train_control,
+                   verbose = FALSE,
+                   tuneLength = 5)
 ```
 
-#Testing Models
+### Testing Models
 ```{r}
 #consolidating CV for each model
 results <- resamples(list(
@@ -91,7 +114,10 @@ results <- resamples(list(
   ForwardStep = model_fwd,
   BackwardStep = model_bwd,
   Polynomial = model_poly,
-  KNN = model_knn
+  KNN = model_knn,
+  Tree = model_tree,
+  RandomForest = model_rf,
+  GBM = model_gbm
 ))
 
 summary(results)
@@ -118,7 +144,6 @@ mae_summary[order(mae_summary$Mean_MAE), ]
 
 ```
 
-
 ```{r}
 #interpretation of coefficients
 summary(model_ols$finalModel)
@@ -126,9 +151,15 @@ summary(model_poly$finalModel)
 summary(model_fwd$bestTune)
 summary(model_bwd$finalModel)
 
+#Visualize the Tree
+rpart.plot(model_tree$finalModel)
+
 # Variable Importance 
 plot(varImp(model_ols), main = "OLS Variable Importance")
 plot(varImp(model_lasso), main = "Lasso Feature Selection")
 plot(varImp(model_ridge), main = "Ridge Shrinkage")
 plot(varImp(model_poly), main = "Polynomial Model Importance")
+plot(varImp(model_tree), main = "Decision Tree Variable Importance")
+plot(varImp(model_rf), main = "Random Forest Variable Importance")
+plot(varImp(model_gbm), main = "GBM Variable Importance")
 ```
