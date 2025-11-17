@@ -1,5 +1,5 @@
 ---
-title: "ec4305 project test"
+title: "ec4305 eda"
 output: html_document
 ---
 
@@ -11,7 +11,6 @@ library(MASS)
 library(ggcorrplot)
 library(caTools)
 library(readr)
-library(dplyr)
 ```
 
 #Data Cleaning and Exploratory Data Analysis
@@ -34,6 +33,10 @@ if (na_count>0){
 }
 str(df)
 ```
+```{r}
+summary(df[, sort(names(df))])
+```
+
 exploratory data analysis
 ```{r}
 #exploratory data analysis 
@@ -60,159 +63,48 @@ ggplot(df_long, aes(x = variable, y = value)) +
   theme(axis.text.x = element_blank())
 #some variables are skewed, need to log transform for linear regression models
 #note that chas is a categorical variable
-
-#scatter plot to demonstrate non-linear relationship (LSTAT vs MEDV)
-ggplot(df, aes(x = lstat, y = medv)) +
-  geom_point(alpha = 0.6) +  # 'alpha' makes points semi-transparent
-  geom_smooth(method = "lm", color = "red", se = FALSE) +  # The 'lm' line
-  geom_smooth(method = "loess", color = "blue", se = FALSE) + # A 'loess' curve
-  theme_minimal() +
-  labs(title = "Median Value (MEDV) vs. % Lower Status (LSTAT)",
-       subtitle = "Red = Linear Fit, Blue = Smooth Curve",
-       x = "% Lower Status (LSTAT)",
-       y = "Median Home Value (MEDV, $1000s)")
-
-#scatter plot to demonstrate linear relationships (RM vs MEDV)
-ggplot(df, aes(x = rm, y = medv)) +
-  geom_point(alpha = 0.6) +
-  geom_smooth(method = "lm", color = "red", se = FALSE) +
-  theme_minimal() +
-  labs(title = "Median Value (MEDV) vs. Avg. Rooms (RM)",
-       x = "Average Rooms (RM)",
-       y = "Median Home Value (MEDV, $1000s)")
-
 ```
+```{r}
+# scatter plot for non-linear variables 
+df_nonlinear <- pivot_longer(df, c(lstat, rm), names_to = "variable", values_to = "value")
+ggplot(df_nonlinear, aes(x = value, y = medv)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", se = FALSE) +
+  
+  facet_wrap(~ variable, scales = "free_x") +
+  theme_minimal() +
+  labs(title = "Key Non-Linear Predictors vs. MEDV",
+       subtitle = "Blue = Non-Linear Fit, Red = Linear Fit",
+       x = "Predictor Value",
+       y = "Median Home Value")
+
+#scatter plot for rest of variables (disregard lstat, rm and chas - catergorical variable)
+df1 <- pivot_longer(df, -c(medv, lstat, rm, chas),names_to = "variable", values_to = "value")
+
+ggplot(df1, aes(x = value, y = medv)) +
+  geom_point(alpha = 0.4, size = 1) +
+  geom_smooth(method = "lm", se = FALSE, color = "red", size = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  facet_wrap(~ variable, ncol = 2, scales = "free_x") +
+  theme_minimal() +
+  labs(title = "Other Predictors vs. Median Value (medv)",
+       x = "Predictor Value",
+       y = "Median Home Value")
+```
+
+
 
 
 ```{r}
 #split into training and test datasets
 set.seed(4305)
-split <- sample.split(Boston$medv, SplitRatio = 0.8)
+split <- sample.split(df$medv, SplitRatio = 0.8)
 
-train_data <- subset(Boston, split == TRUE)
-test_data <- subset(Boston, split == FALSE)
+train_data <- subset(df, split == TRUE)
+test_data <- subset(df, split == FALSE)
 write_csv(train_data,"train_data.csv")
 write_csv(test_data, "test_data.csv")
-
-train_y <- train_data$medv
-test_y  <- test_data$medv
+write_csv(df, "data.csv")
 ```
 
-Random forest
-```{r}
-library(randomForest)
-set.seed(4305)
-rf = randomForest(medv ~ .,data = train_data,,importance = TRUE)
-print(rf)
-
-# Variable importance
-importance(rf)
-varImpPlot(rf, main = "Variable Importance")
-
-rf_pred = predict(rf, test_data)
-# Model performance metrics
-rf_rmse = sqrt(mean((rf_pred - test_y)^2)) #2.994926
-rf_mae = mean(abs(rf_pred - test_y)) #2.181463
-rf_r2 = 1 - sum((test_y - rf_pred)^2) /
-  sum((test_y -mean(test_y))^2) #0.840421
-```
-
-Gradient Boosting
-```{r}
-library(gbm)
-set.seed(4305)
-gbm <- gbm(
-  formula = medv ~ .,
-  data = train_data,
-  distribution = "gaussian",   # regression
-  n.trees = 3000,              # number of trees
-  interaction.depth = 3,       # tree depth
-  shrinkage = 0.01,            # learning rate
-  n.minobsinnode = 5,          # minimum observations in a node
-  bag.fraction = 0.7,          # stochastic GBM (improves generalization)
-  train.fraction = 1.0,        # use full training set
-  verbose = FALSE
-)
-
-summary(gbm)
-
-gbm_pred <- predict(gbm,
-                    newdata = test_data,
-                    n.trees = 3000)
-
-# Model performance metrics
-gbm_rmse <- sqrt(mean((gbm_pred - test_y)^2)) #2.904807
-gbm_mae = mean(abs(gbm_pred - test_y)) #2.085815
-gbm_r2 = 1 - sum((test_y - gbm_pred)^2) /
-  sum((test_y -mean(test_y))^2) #0.8498801
-```
-
-XGBoost
-```{r}
-library(xgboost)
-x_train <- as.matrix(select(train_data, -medv))
-x_test <- as.matrix(select(test_data, -medv))
-######################
-### Minimal Tuning ###
-######################
-xgb <- xgboost(data = x_train, label = train_y, 
-                     nrounds = 100, objective = "reg:squarederror",
-                     verbose = 0) 
-xgb_pred <- predict(xgb, x_test)
-
-# Variable importance
-importance_matrix <- xgb.importance(model = xgb)
-xgb.plot.importance(importance_matrix)
-
-# Model performance metrics
-xgb_rmse <- sqrt(mean((xgb_pred - test_y)^2)) #3.43057
-xgb_mae = mean(abs(xgb_pred - test_y)) #2.31843
-xgb_r2 = 1 - sum((test_y - xgb_pred)^2) /
-  sum((test_y -mean(test_y))^2) #0.7906195
-
-###################
-### With Tuning ###
-###################
-dtrain <- xgb.DMatrix(data = x_train, label = train_y)
-dtest  <- xgb.DMatrix(data = x_test,  label = test_y)
-
-params <- list(
-  objective = "reg:squarederror",
-  eval_metric = "rmse",
-  eta = 0.05,
-  max_depth = 4,
-  subsample = 0.8,
-  colsample_bytree = 0.8
-)
-set.seed(4305)
-xgb_bmodel <- xgb.train(
-  params = params,
-  data = dtrain,
-  nrounds = 500,
-  watchlist = list(train = dtrain),
-  verbose = 0
-)
-xgb_pred1 <- predict(xgb_bmodel, newdata = dtest)
-
-# Variable importance
-importance_matrixb <- xgb.importance(model = xgb_bmodel)
-xgb.plot.importance(importance_matrixb)
-
-# Model performance metrics
-xgb_rmse1 <- sqrt(mean((xgb_pred1 - test_y)^2)) #2.910578
-xgb_mae1 = mean(abs(xgb_pred1 - test_y)) #2.060643
-xgb_r21 = 1 - sum((test_y - xgb_pred1)^2) /
-  sum((test_y -mean(test_y))^2) #0.849283
-```
-
-Comparison Table
-```{r}
-comparison <- data.frame(
-  Model = c("Random forest", "Gradient Boosting", "XGBoost (without tuning)", "XGBoost (with tuning)"),
-  RMSE = c(rf_rmse, gbm_rmse, xgb_rmse, xgb_rmse1),
-  MAE = c(rf_mae, gbm_mae, xgb_mae, xgb_mae1),
-  R_squared = c(rf_r2, gbm_r2, xgb_r2, xgb_r21)
-)
-
-print(comparison)
-```
