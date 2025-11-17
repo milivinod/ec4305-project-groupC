@@ -1,0 +1,137 @@
+---
+title: "models"
+output: html_document
+---
+
+```{r}
+library(readr)
+library(ggplot2)
+library(tidyr)
+library(MASS)
+library(leaps)
+library(glmnet)
+library(caret)
+```
+
+#load datasets
+```{r}
+train_data <- read_csv("train_data.csv")
+test_data <- read_csv("test_data.csv")
+data <- read_csv("data.csv")
+
+train_control <- trainControl(method = "cv", number = 10)
+```
+
+
+```{r}
+#Training Models
+set.seed(4305)
+#1. Baseline Model: OLS
+model_ols <- train(medv ~ ., data = data, 
+                   method = "lm", 
+                   trControl = train_control)
+
+#2. Ridge Regression
+model_ridge <- train(medv ~ ., data = data, 
+                     method = "glmnet", 
+                     trControl = train_control,
+                     preProcess = c("center", "scale"),
+                     tuneGrid = expand.grid(alpha = 0, lambda = seq(0.01, 1, by = 0.05)))
+
+#3. Lasso Regression
+model_lasso <- train(medv ~ ., data = data, 
+                     method = "glmnet", 
+                     trControl = train_control,
+                     preProcess = c("center", "scale"),
+                     tuneGrid = expand.grid(alpha = 1, lambda = seq(0.01, 1, by = 0.05)))
+
+#4. Elastic Net Regression
+model_elastic <- train(medv ~ ., data = data, 
+                     method = "glmnet", 
+                     trControl = train_control,
+                     preProcess = c("center", "scale"),
+                     tuneGrid = expand.grid(alpha = 0.5, lambda = seq(0.01, 1, by = 0.05)))
+
+#5. Stepwise (Backwards)
+model_bwd <- train(medv ~ ., data = data, 
+                   method = "leapBackward", 
+                   trControl = train_control,
+                   tuneGrid = data.frame(nvmax = 1:13))
+
+#6. Stepwise (Forward)
+model_fwd <- train(medv ~ ., data = data, 
+                   method = "leapForward", 
+                   trControl = train_control,
+                   tuneGrid = data.frame(nvmax = 1:13))
+
+#7. Polynomial Regression 
+# For non-linear variables identified in EDA (lstat and rm)
+model_poly <- train(medv ~ poly(lstat, 2) + poly(rm, 2) + crim + zn + 
+                      indus + chas + nox + age + dis + rad + tax + ptratio + black, 
+                    data = data, 
+                    method = "lm", 
+                    trControl = train_control)
+
+#8. K-Nearest neighbours
+model_knn <- train(medv ~ ., data = data, 
+                   method = "knn", 
+                   preProcess = c("center", "scale"),
+                   trControl = train_control,
+                   tuneLength = 10)
+```
+
+#Testing Models
+```{r}
+#consolidating CV for each model
+results <- resamples(list(
+  OLS = model_ols,
+  Ridge = model_ridge,
+  Lasso = model_lasso,
+  ElasticNet = model_elastic,
+  ForwardStep = model_fwd,
+  BackwardStep = model_bwd,
+  Polynomial = model_poly,
+  KNN = model_knn
+))
+
+summary(results)
+
+#RMSE
+model_rmse_mean <- summary(results)$statistics$RMSE[,"Mean"]
+rmse_summary <- data.frame(Model = names(model_rmse_mean),
+                           Mean_RMSE = model_rmse_mean)
+rmse_summary[order(rmse_summary$Mean_RMSE), ]
+
+
+#R-squared
+model_r2_mean <- summary(results)$statistics$Rsquared[,"Mean"]
+r2_summary <- data.frame(Model = names(model_r2_mean),
+                         Mean_Rsquared = model_r2_mean)
+r2_summary[order(r2_summary$Mean_Rsquared, decreasing = TRUE), ]
+
+
+#MAE
+model_mae_mean <- summary(results)$statistics$MAE[,"Mean"]
+mae_summary <- data.frame(Model = names(model_mae_mean),
+                          Mean_MAE = model_mae_mean)
+mae_summary[order(mae_summary$Mean_MAE), ]
+
+```
+
+
+```{r}
+#interpretation of coefficients
+summary(model_ols$finalModel)
+summary(model_poly$finalModel)
+summary(model_fwd$bestTune)
+summary(model_bwd$finalModel)
+
+# Variable Importance 
+plot(varImp(model_ols), main = "OLS Variable Importance")
+plot(varImp(model_lasso), main = "Lasso Feature Selection")
+plot(varImp(model_ridge), main = "Ridge Shrinkage")
+plot(varImp(model_poly), main = "Polynomial Model Importance")
+```
+
+
+
