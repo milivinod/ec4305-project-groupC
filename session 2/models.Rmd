@@ -132,6 +132,3 @@ plot(varImp(model_lasso), main = "Lasso Feature Selection")
 plot(varImp(model_ridge), main = "Ridge Shrinkage")
 plot(varImp(model_poly), main = "Polynomial Model Importance")
 ```
-
-
-
