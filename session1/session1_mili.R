@@ -7,8 +7,6 @@ library(gridExtra)
 library(tidyr)
 library(tidyverse)
 library(vcd)
-library(GGally)
-library(ggplot2)
 
 #Data
 data("Credit")
@@ -26,7 +24,7 @@ Credit <- Credit %>%
     select(-Ethnicity) 
 
 #define variable groups
-continuous_vars <- c("Income", "Limit", "Rating", "Age", "Education", "Balance")
+continuous_vars <- c("Income", "Limit", "Rating", "Balance")
 count_vars      <- c("Cards")
 binary_vars     <- c("Gender", "Student", "Married", "Asian", "AfricanAmerican", "Caucasian")
 
@@ -92,40 +90,83 @@ for (var in continuous_vars) {
 print(dist_tests) #all of them reject null hypothesis -> non-normal
 
 ##MGF Estimates##
-mgf_estimate <- function(x, t_values) {
-  sapply(t_values, function(t) mean(exp(t * x)))
+mgf_hat <- function(x, t) {
+  mean(exp(t * x))
 }
 
-t_values_1 <- c(-1, -0.5, 0, 0.5, 1) #using this got numerical overflow (Inf)
-t_values_2 <- c(-0.01, -0.005, 0, 0.005, 0.01)
-mgf_results <- list()
+#t_values_1 <- c(-1, -0.5, 0, 0.5, 1) using this got numerical overflow (Inf)
 
-for (var in continuous_vars) {
-  x <- Credit[[var]]
-  mgf_results[[var]] <- mgf_estimate(x, t_values_2)
-}
+t_vals <- seq(-0.001, 0.001, length.out = 200)
 
-mgf_results
+#mgf estimates for each continuous variable
+mgf_income  <- sapply(t_vals, function(t) mgf_hat(Credit$Income, t))
+mgf_limit <- sapply(t_vals, function(t) mgf_hat(Credit$Limit, t))
+mgf_rating <- sapply(t_vals, function(t) mgf_hat(Credit$Rating, t))
+mgf_balance <- sapply(t_vals, function(t) mgf_hat(Credit$Balance, t))
+
+
+# Plot mgf estimates
+plot(t_vals, mgf_income, type = "l", 
+     main = "Estimated MGF: Income", xlab = "t", ylab = "M_X(t)")
+plot(t_vals, mgf_limit, type = "l", 
+     main = "Estimated MGF: Limit", xlab = "t", ylab = "M_X(t)")
+plot(t_vals, mgf_rating, type = "l", 
+     main = "Estimated MGF: Rating", xlab = "t", ylab = "M_X(t)")
+plot(t_vals, mgf_balance, type = "l", 
+     main = "Estimated MGF: Balance", xlab = "t", ylab = "M_X(t)")
+
 
 ##PLOT##
-par(mfrow=c(2,3), mar=c(4,4,2,1))
+png(filename = "Univariate Empirical Distributions.png", 
+    width = 1600, height = 1000, res = 150)
+
+par(mfrow=c(2,2), mar=c(4,4,4,1))
 for (var in continuous_vars) {
   x <- Credit[[var]]
   hist(x, probability=TRUE, main=paste("Histogram of", var), xlab=var, col="lightgray", border="white")
   lines(density(x), col="blue", lwd=2)
 }
+dev.off()
 
 #plots confirm that they are not normal
 
 
 ##Scatter plot of the integral transformed data##
-pit_data <- as.data.frame(lapply(Credit[continuous_vars], function(x) {
-  jitter(rank(x) / (length(x) + 1), factor = 0.01)
-}))
 
-col_points <- rgb(0, 0, 1, 0.5) 
-pairs(pit_data,
-      main = "Scatterplot Matrix of PIT-Transformed Data",
-      pch = 19,          # solid dots
-      cex = 0.5,         # smaller point size
-      col = col_points)
+png(filename = "Integral_Transformed_Scatter.png", 
+    width = 1600, height = 1000, res = 150)
+pairs_list <- list(
+  c("Income", "Limit"), 
+  c("Income", "Rating"), 
+  c("Income", "Balance"), 
+  c("Limit", "Rating"), 
+  c("Limit", "Balance"), 
+  c("Rating", "Balance"))
+
+# Set layout: 2 rows x 3 columns
+par(mfrow = c(2,3), mar = c(4,4,2,1))
+
+# Loop through each pair and plot
+for(pair in pairs_list){
+  X <- Credit[[pair[1]]]
+  Y <- Credit[[pair[2]]]
+  
+  U1 <- ecdf(X)(X)
+  U2 <- ecdf(Y)(Y)
+  
+  plot(U1, U2,
+       main = paste(pair[1], "vs", pair[2]),
+       xlab = paste("U =", pair[1]),
+       ylab = paste("U =", pair[2]),
+       pch = 20, col = rgb(0,0,1,0.4))
+}
+dev.off()
+
+###RETRYING WITH LOG TRANSFORMATION on right skewed variables###
+log_vars <- c("Income", "Limit", "Rating", "Education", "Balance")
+
+# Create a log-transformed dataset
+Credit_log <- Credit
+for (var in log_vars) {
+  Credit_log[[var]] <- log(Credit[[var]])  
+}
