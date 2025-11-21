@@ -119,6 +119,9 @@ model_pls <- train(medv ~ ., data = data,
                    preProcess = c("center", "scale"),
                    verbose = FALSE,
                    tuneLength = 13)
+
+#14. IV
+
 ```
 
 ### Testing Models
@@ -173,6 +176,21 @@ summary(model_bwd$finalModel)
 
 #Visualize the Tree
 rpart.plot(model_tree$finalModel)
+
+#PCR Analysis
+final_pcr <- model_pcr$finalModel
+validationplot(final_pcr, val.type="RMSEP", main="10-fold CV")
+summary(final_pcr)
+round(coef(final_pcr, ncomp = 5), 3)
+final_pcr$method
+
+#PLS Analysis
+final_pls <- model_pls$finalModel
+#Plot 10-fold CV MSE's:
+validationplot(final_pls, val.type="RMSEP", main="PLS 10-fold CV")
+summary(final_pls)
+round(coef(final_pls, ncomp = 2), 3)
+final_pls$method
 
 # Variable Importance 
 plot(varImp(model_ols), main = "OLS Variable Importance")
