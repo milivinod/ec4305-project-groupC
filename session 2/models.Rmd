@@ -17,6 +17,7 @@ library(randomForest)
 library(gbm)
 library(pls)
 library(ivreg)
+library(AER)
 ```
 
 ### load datasets
@@ -121,6 +122,29 @@ model_pls <- train(medv ~ ., data = data,
                    tuneLength = 13)
 
 #14. IV
+ols <- lm( medv ~ lstat + dis + rm + rad + ptratio + nox + tax, data)
+
+fsls <- lm(lstat ~ dis + rm + rad + ptratio + nox + tax + age + crim + zn + indus + black, data)
+
+summary(fsls)
+
+#age as instrument for lstat
+iv1 <- ivreg(
+  medv ~ lstat + dis + rm + rad + ptratio + nox + tax  
+  |age + dis + rm + rad + ptratio + nox + tax, data=data)
+
+summary(iv1, diagnostics = TRUE)
+m_list1 <- list(ols, iv1)
+msummary(m_list1)
+
+#crim as instrument for lstat
+iv2 <- ivreg(
+  medv ~ lstat + dis + rm + rad + ptratio + nox + tax  
+  |crim + dis + rm + rad + ptratio + nox + tax, data=data)
+
+summary(iv2, diagnostics = TRUE)
+m_list1 <- list(ols, iv2)
+msummary(m_list2)
 
 ```
 
@@ -164,6 +188,37 @@ model_mae_mean <- summary(results)$statistics$MAE[,"Mean"]
 mae_summary <- data.frame(Model = names(model_mae_mean),
                           Mean_MAE = model_mae_mean)
 mae_summary[order(mae_summary$Mean_MAE), ]
+
+#Manual CV for IV Regression
+K <- 10
+folds <- sample(rep(1:K, length.out = nrow(data)))
+
+rmse_iv <- numeric(K)
+
+for (k in 1:K) {
+
+  # Split data
+  train_idx <- which(folds != k)
+  test_idx  <- which(folds == k)
+
+  train <- data[train_idx, ]
+  test  <- data[test_idx, ]
+
+  # Fit IV model on training fold
+  iv_k <- iv
+
+  # Predict on test fold
+  preds <- predict(iv_k, newdata = test)
+
+  # Compute RMSE for this fold
+  rmse_iv[k] <- sqrt(mean((test$medv - preds)^2))
+}
+
+# RMSE for each fold
+rmse_iv
+
+# Mean RMSE across folds
+mean(rmse_iv)
 
 ```
 
